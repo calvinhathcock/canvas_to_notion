@@ -8,6 +8,7 @@ import requests
 from bs4 import BeautifulSoup
 from canvasapi import Canvas
 from dateutil import parser
+from datetime import timedelta
 from yarl import URL
 
 #load env variables
@@ -26,6 +27,8 @@ class TODO:
     course: str
     date: datetime.datetime
     desc: str
+    type: str
+    link: str
 
 @dataclass
 class Payload:
@@ -77,11 +80,21 @@ class Payload:
                             "content": todo_item.desc
                         }
                     }]
+                },
+                "Type": {
+                    "multi_select": [
+                        {
+                            "name": todo_item.type
+                        }
+                    ]
+                },
+                "Link": {
+                    "url": todo_item.link
                 }
             }
         })
 
-        return super().__new__(cls)
+        return cls
 
 
 #initialize canvas and get todo items
@@ -91,12 +104,14 @@ todo = canvas.get_todo_items()
 
 #extract needed info from canvas and setup payload
 for item in todo:
-    todo_item = TODO(
-            name = item.assignment['name'],
-            course = item.context_name,
-            date = item.assignment['due_at'],
-            desc = BeautifulSoup(item.assignment['description'], 'html.parser').get_text()[:2000] #2000 character limit
-    )
+    name = item.assignment['name']
+    course = item.context_name[17:]
+    date = str(parser.isoparse(item.assignment['due_at']) - timedelta(hours=4))
+    desc = BeautifulSoup(item.assignment['description'], 'html.parser').get_text()[:2000] #2000 character limit
+    type = item.type
+    link = item.html_url
+
+    todo_item = TODO( name, course, date, desc, type, link )
 
     payload = Payload().from_todo( todo_item )
 
