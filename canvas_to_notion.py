@@ -1,5 +1,6 @@
 import datetime
 import json
+import logging
 import os
 from dataclasses import dataclass
 
@@ -8,8 +9,9 @@ import requests
 from bs4 import BeautifulSoup
 from canvasapi import Canvas
 from dateutil import parser
-from datetime import timedelta
+from datetime import timedelta, datetime
 from yarl import URL
+from pathlib import Path
 
 #load env variables
 dotenv.load_dotenv()
@@ -19,13 +21,21 @@ NOTION_TOKEN = os.environ.get("NOTION_TOKEN")
 CANVAS_URL = os.environ.get("URL")
 CANVAS_TOKEN = os.environ.get("CANVAS_TOKEN")
 
+#setup logging
+now = str(datetime.now())
+logging.basicConfig(
+    filename = Path(f'logs/todo_{now}.log'), 
+    encoding='utf-8', 
+    level=logging.INFO
+)
+
 #defining some data structures
 @dataclass
 class TODO:
     """Class to hold Canvas-TODO object data"""
     name: str
     course: str
-    date: datetime.datetime
+    date: datetime
     desc: str
     type: str
     link: str
@@ -112,10 +122,12 @@ blocks = requests.post(
     db_payload.url, 
     json = db_payload.body, 
     headers= db_payload.headers
-).json()
+)
+
+logging.info("Querying DB: " + str(blocks.status_code))
 
 #delete all current entries
-for block in blocks['results']:
+for block in blocks.json()['results']:
     block_id = block['id']
     block_payload = Payload(
         url = f"https://api.notion.com/v1/blocks/{block_id}",
@@ -126,10 +138,14 @@ for block in blocks['results']:
         },
         body = None
     )
-    requests.delete(
+
+    resp = requests.delete(
         block_payload.url,
         headers = block_payload.headers
     )
+
+    logging.info("Deleting entry: " + str(resp.status_code))
+
 
 #initialize canvas and get todo items
 canvas = Canvas(CANVAS_URL, CANVAS_TOKEN)
@@ -156,4 +172,4 @@ for item in todo:
         data = todo_payload.body
     )
 
-    print(response)
+    logging.info("Sending TODO item to Notion: " + str(response.status_code))
