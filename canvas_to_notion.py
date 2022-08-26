@@ -96,13 +96,47 @@ class Payload:
 
         return cls
 
+#query all current db entries
+db_payload = Payload(
+    url = f"https://api.notion.com/v1/databases/{DB_ID}/query",
+    headers = {
+    "Accept": "application/json",
+    "Notion-Version": "2022-06-28",
+    "Content-Type": "application/json",
+    "Authorization": f"Bearer {NOTION_TOKEN}"
+    },
+    body = {"page_size": 100}
+)
+
+blocks = requests.post(
+    db_payload.url, 
+    json = db_payload.body, 
+    headers= db_payload.headers
+).json()
+
+#delete all current entries
+for block in blocks['results']:
+    block_id = block['id']
+    block_payload = Payload(
+        url = f"https://api.notion.com/v1/blocks/{block_id}",
+        headers = {
+            "Accept": "application/json",
+            "Notion-Version": "2022-06-28",
+            "Authorization": f"Bearer {NOTION_TOKEN}"
+        },
+        body = None
+    )
+    requests.delete(
+        block_payload.url,
+        headers = block_payload.headers
+    )
 
 #initialize canvas and get todo items
 canvas = Canvas(CANVAS_URL, CANVAS_TOKEN)
 
 todo = canvas.get_todo_items()
 
-#extract needed info from canvas and setup payload
+#extract needed info from canvas todo object and setup payload for db insertion
 for item in todo:
     name = item.assignment['name']
     course = item.context_name[17:]
@@ -113,13 +147,13 @@ for item in todo:
 
     todo_item = TODO( name, course, date, desc, type, link )
 
-    payload = Payload().from_todo( todo_item )
+    todo_payload = Payload().from_todo( todo_item )
 
     response = requests.request(
         "POST", 
-        url = payload.url, 
-        headers = payload.headers, 
-        data = payload.body
+        url = todo_payload.url, 
+        headers = todo_payload.headers, 
+        data = todo_payload.body
     )
 
     print(response)
