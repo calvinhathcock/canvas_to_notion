@@ -13,6 +13,8 @@ from datetime import timedelta, datetime
 from yarl import URL
 from pathlib import Path
 
+#sleeping to allow WiFi to connect before running 
+
 #load env variables
 dotenv.load_dotenv()
 
